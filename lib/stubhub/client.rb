@@ -53,57 +53,63 @@ module Stubhub
     end
 
     def create_listing(opts = {})
-      url = "/inventory/listings/v1"
+      url = "/inventory/listings/v2"
 
-
-      listing_params = {
+      listing = {
           eventId: opts[:event_id],
           quantity: opts[:quantity],
-          seats: opts[:seats],
-          pricePerTicket: {
-            amount: opts[:price_per_ticket].to_s,
+          pricePerProduct: {
+            amount: opts[:price_per_ticket].to_f.round(2),
             currency: 'USD'
           },
           deliveryOption: opts[:delivery_option],
-          ticketTraits: [],
-          rows: opts[:rows],
           section: opts[:section],
+          products: [],
+          ticketTraits: [],
+          externalListingId: opts[:external_id]
           # status: 'INACTIVE' # Disable for production
       }
 
       opts[:traits].each do |trait|
-        listing_params[:ticketTraits].push({id: trait.to_s})
+        listing[:ticketTraits].push({id: trait.to_s,operation: "ADD"})
+      end
+
+      # products 
+      if opts[:rows].count == 1
+        opts[:seats].each do |seat|
+          listing[:products].push({row:opts[:rows][0],
+            productType:"TICKET",seat:seat,operation: "ADD",externalId: opts[:external_id]})
+        end
+      else
+        # for piggyback 
+        length = opts[:seats].count/2
+        opts[:rows].each do |row|
+          0.upto(length-1) do |i|
+            listing[:products].push({row:row,
+              productType:"TICKET",seat:opts[:seats][i],operation: "ADD",externalId: opts[:external_id]})
+          end
+        end
       end
 
       if opts[:split_option] == -1
-        listing_params[:splitOption] = 'NOSINGLES'
+        listing[:splitOption] = 'NOSINGLES'
       elsif opts[:split_option] == 0
-        listing_params[:splitOption] = 'NONE'
+        listing[:splitOption] = 'NONE'
       else
-        listing_params[:splitOption] = 'MULTIPLES'
-        listing_params[:splitQuantity] = opts[:split_option]
+        listing[:splitOption] = 'MULTIPLES'
+        listing[:splitQuantity] = opts[:split_option]
       end
 
       if opts[:in_hand_date]
-        listing_params[:inhandDate] = opts[:in_hand_date]
+        listing[:inhandDate] = opts[:in_hand_date]
       end
 
-      if opts.include? :tickets
-         url = "/inventory/listings/v1/barcodes"
-         listing_params[:tickets] = opts[:tickets]
-      end
 
-      response = post url, :json, {
-        listing: listing_params
-      }
+      response = post url, :json, listing
 
-      response.parsed_response["listing"]["id"]
+      response.parsed_response["listingId"]
     end
 
-    def delete_listing(stubhub_id)
-      response = delete "/inventory/listings/v1/#{stubhub_id}"
-      response.parsed_response["listing"]["id"]
-    end
 
     def update_listing(stubhub_id, listing={})
 
@@ -111,7 +117,7 @@ module Stubhub
         listing[:ticketTraits] = []
 
         listing[:traits].each do |trait|
-          listing[:ticketTraits].push({id: trait.to_s})
+          listing[:ticketTraits].push({id: trait.to_s,operation:"ADD"})
         end
 
         listing.delete :traits
@@ -131,7 +137,7 @@ module Stubhub
       end
 
       if listing.include? :price
-        listing[:pricePerTicket] = {
+        listing[:pricePerProduct] = {
           amount: listing[:price],
           currency: 'USD'
         }
@@ -144,14 +150,25 @@ module Stubhub
 
         listing.delete :memo
       end
+      if listing[:delete_seats].present?
+        listing[:products] = [] 
+        listing[:delete_seats].each do |delete_seat|
+          listing[:products].push({seat: delete_seat,productType:"TICKET",operation: "DELETE"})
+        end
 
-      response = put "/inventory/listings/v1/#{stubhub_id}", {
-        listing: listing
-      }
+        listing.delete :delete_seats
+      end
+  
+      response = put "/inventory/listings/v2/#{stubhub_id}", listing
 
       response.parsed_response["listing"]["id"]
     end
 
+    def delete_listing(stubhub_id)
+      response = put "/inventory/listings/v2/#{stubhub_id}", {status:"DELETED"}
+      response.parsed_response["listing"]["id"]
+    end
+    
     def sales(options = {})
       params = {
         sort: 'SALEDATE desc'
