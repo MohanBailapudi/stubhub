@@ -54,7 +54,7 @@ module Stubhub
 
     def create_listing(opts = {})
       url = "/inventory/listings/v2"
-
+      
       listing = {
           eventId: opts[:event_id],
           quantity: opts[:quantity],
@@ -73,7 +73,7 @@ module Stubhub
       opts[:traits].each do |trait|
         listing[:ticketTraits].push({id: trait.to_s,operation: "ADD"})
       end
-
+      puts listing
       # products 
       if opts[:rows].count == 1
         opts[:seats].each do |seat|
@@ -90,7 +90,7 @@ module Stubhub
           end
         end
       end
-
+      
       if opts[:split_option] == -1
         listing[:splitOption] = 'NOSINGLES'
       elsif opts[:split_option] == 0
@@ -103,11 +103,11 @@ module Stubhub
       if opts[:in_hand_date]
         listing[:inhandDate] = opts[:in_hand_date]
       end
+      
 
+      response = post(url,:json,listing)
 
-      response = post url, :json, listing
-
-      response.parsed_response["listingId"]
+      response.parsed_response["id"]
     end
 
 
@@ -153,20 +153,21 @@ module Stubhub
       if listing[:delete_seats].present?
         listing[:products] = [] 
         listing[:delete_seats].each do |delete_seat|
-          listing[:products].push({seat: delete_seat,productType:"TICKET",operation: "DELETE"})
+          #  delete_seat is array first element seat, second element is row
+          listing[:products].push({row: delete_seat[1],seat: delete_seat[0],productType:"TICKET",operation: "DELETE"})
         end
 
         listing.delete :delete_seats
       end
-  
+
       response = put "/inventory/listings/v2/#{stubhub_id}", listing
 
-      response.parsed_response["listing"]["id"]
+      response.parsed_response["id"]
     end
 
     def delete_listing(stubhub_id)
       response = put "/inventory/listings/v2/#{stubhub_id}", {status:"DELETED"}
-      response.parsed_response["listing"]["id"]
+      response.parsed_response["id"]
     end
     
     def sales(options = {})
@@ -536,6 +537,8 @@ module Stubhub
       headers['Authorization'] = "Bearer #{self.access_token}"
 
       response = self.class.delete(path, options)
+      
+      puts "Stubhub DELETE response #{response.body}"
 
       unless response.code == 200
         raise Stubhub::ApiError.new(response.code, response.body)
@@ -571,7 +574,6 @@ module Stubhub
       end
 
       puts "Stubhub POST #{path} #{options}"
-
       response = self.class.post(path, options)
 
       unless response.code == 200
