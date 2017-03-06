@@ -73,8 +73,15 @@ module Stubhub
       opts[:traits].each do |trait|
         listing[:ticketTraits].push({id: trait.to_s,operation: "ADD"})
       end
-      puts listing
-      # products 
+     if opts[:tickets].present?
+      # products with barcodes 
+        opts[:tickets].each do |ticket|
+          listing[:products].push({row:ticket[:row],fulfillmentArtifact: ticket[:barcode]
+            productType:"TICKET",seat:ticket[:seat],operation: "ADD",externalId: opts[:external_id]})
+        end
+     else
+       
+      # products without barcodes
       if opts[:rows].count == 1
         opts[:seats].each do |seat|
           listing[:products].push({row:opts[:rows][0],
