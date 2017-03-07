@@ -73,20 +73,20 @@ module Stubhub
       opts[:traits].each do |trait|
         listing[:ticketTraits].push({id: trait.to_s,operation: "ADD"})
       end
-     if opts[:tickets].present?
-      # products with barcodes 
+      if opts[:tickets].present?
+        # products with barcodes 
         puts "listing creating with barcodes"
         opts[:tickets].each do |ticket|
-          listing[:products].push({row:ticket[:row],fulfillmentArtifact: ticket[:barcode]
+          listing[:products].push({row:ticket[:row],fulfillmentArtifact: ticket[:barcode],
             productType:"TICKET",seat:ticket[:seat],operation: "ADD",externalId: opts[:external_id]})
         end
-     else
-      puts "listing creating without barcodes"
-      # products without barcodes
-      if opts[:rows].count == 1
-        opts[:seats].each do |seat|
+      else
+        puts "listing creating without barcodes"
+        # products without barcodes
+        if opts[:rows].count == 1
+          opts[:seats].each do |seat|
           listing[:products].push({row:opts[:rows][0],
-            productType:"TICKET",seat:seat,operation: "ADD",externalId: opts[:external_id]})
+        productType:"TICKET",seat:seat,operation: "ADD",externalId: opts[:external_id]})
         end
       else
         # for piggyback 
