@@ -85,16 +85,17 @@ module Stubhub
         # products without barcodes
         if opts[:rows].count == 1
           opts[:seats].each do |seat|
-          listing[:products].push({row:opts[:rows][0],
-        productType:"TICKET",seat:seat,operation: "ADD",externalId: opts[:external_id]})
-        end
-      else
-        # for piggyback 
-        length = opts[:seats].count/2
-        opts[:rows].each do |row|
-          0.upto(length-1) do |i|
-            listing[:products].push({row:row,
+            listing[:products].push({row:opts[:rows][0],
+              productType:"TICKET",seat:seat,operation: "ADD",externalId: opts[:external_id]})
+          end
+        else
+          # for piggyback 
+          length = opts[:seats].count/2
+          opts[:rows].each do |row|
+            0.upto(length-1) do |i|
+              listing[:products].push({row:row,
               productType:"TICKET",seat:opts[:seats][i],operation: "ADD",externalId: opts[:external_id]})
+            end
           end
         end
       end
@@ -594,5 +595,4 @@ module Stubhub
     end
 
   end
-
 end
