@@ -202,7 +202,6 @@ module Stubhub
       unless filters.empty?
         params[:filters] = filters.join(" AND ")
       end
-      puts "proxy---#{ENV["STUBHUB_PROXY"]}"
       response = get "/accountmanagement/sales/v1/seller/#{self.user}", params
       response.parsed_response["sales"]["sale"]
     end
