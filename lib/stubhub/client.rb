@@ -223,24 +223,15 @@ module Stubhub
 
 
 
-    def predeliver_barcodes(listing_id, seats)
-      tickets = []
-
-      seats.each do |seat|
-        tickets.push({
-            row: seat[:row],
-            seat: seat[:seat],
-            barcode: seat[:barcode]
-          })
+    def predeliver_barcodes(listing_id, external_id,seats)
+      listing = {products:[]}
+      
+      seats.map do |seat|
+        listing[:products].push({row:seat[:row],fulfillmentArtifact: seat[:barcode]
+            productType:"TICKET",seat:seat[:seat],operation: "UPDATE",externalId: external_id})
       end
-      tickets.to_json
-      response = post "/inventory/listings/v1/#{listing_id}/barcodes", :json, {
-        listing: {
-          tickets: tickets
-        }
-      }
-
-      response.parsed_response
+      response = put "/inventory/listings/v2/#{listing_id}", listing
+      response
     end
 
      # job for fulfill barcode for tickets
