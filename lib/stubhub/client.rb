@@ -227,7 +227,7 @@ module Stubhub
       listing = {products:[]}
       
       seats.map do |seat|
-        listing[:products].push({row:seat[:row],fulfillmentArtifact: seat[:barcode]
+        listing[:products].push({row:seat[:row],fulfillmentArtifact: seat[:barcode],
             productType:"TICKET",seat:seat[:seat],operation: "UPDATE",externalId: external_id})
       end
       response = put "/inventory/listings/v2/#{listing_id}", listing
