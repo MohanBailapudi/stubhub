@@ -73,30 +73,21 @@ module Stubhub
       opts[:traits].each do |trait|
         listing[:ticketTraits].push({id: trait.to_s,operation: "ADD"})
       end
+
       if opts[:tickets].present?
         # products with barcodes 
         puts "listing creating with barcodes"
         opts[:tickets].each do |ticket|
           listing[:products].push({row:ticket[:row],fulfillmentArtifact: ticket[:barcode],
-            productType:"TICKET",seat:ticket[:seat],operation: "ADD",externalId: opts[:external_id]})
+            productType:"TICKET",seat:ticket[:seat],operation: "ADD",externalId: ticket[:externalId]})
         end
+        
       else
         puts "listing creating without barcodes"
         # products without barcodes
-        if opts[:rows].count == 1
-          opts[:seats].each do |seat|
-            listing[:products].push({row:opts[:rows][0],
-              productType:"TICKET",seat:seat,operation: "ADD",externalId: opts[:external_id]})
-          end
-        else
-          # for piggyback 
-          length = opts[:seats].count/2
-          opts[:rows].each do |row|
-            0.upto(length-1) do |i|
-              listing[:products].push({row:row,
-              productType:"TICKET",seat:opts[:seats][i],operation: "ADD",externalId: opts[:external_id]})
-            end
-          end
+        opts[:seats].each do |seat|
+          listing[:products].push({row: seat[:row],
+            productType:"TICKET",seat:seat[:seat],operation: "ADD",externalId: seat[:externalId]})
         end
       end
       
@@ -163,7 +154,7 @@ module Stubhub
         listing[:products] = [] 
         listing[:delete_seats].each do |delete_seat|
           #  delete_seat is array first element seat, second element is row
-          listing[:products].push({row: delete_seat[1],seat: delete_seat[0],productType:"TICKET",operation: "DELETE"})
+          listing[:products].push({row: delete_seat[1],seat: delete_seat[0],productType:"TICKET",externalId:delete_seat[2],operation: "DELETE"})
         end
 
         listing.delete :delete_seats
@@ -228,7 +219,7 @@ module Stubhub
       
       seats.map do |seat|
         listing[:products].push({row:seat[:row],fulfillmentArtifact: seat[:barcode],
-            productType:"TICKET",seat:seat[:seat],operation: "UPDATE",externalId: external_id})
+            productType:"TICKET",seat:seat[:seat],operation: "UPDATE",externalId: seat[:externalId]})
       end
       response = put "/inventory/listings/v2/#{listing_id}", listing
       response
