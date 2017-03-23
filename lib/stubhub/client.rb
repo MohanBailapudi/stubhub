@@ -3,6 +3,7 @@ require 'json'
 require 'uri'
 require 'net/https'
 require 'httmultiparty'
+require 'mime/types'
 
 module Stubhub
 
@@ -261,10 +262,41 @@ module Stubhub
       response.parsed_response
     end
 
-    def predeliver(opts = {})
+    def predeliver(listing_id, seats)
+      uri = URI.parse("http://api.stubhub.com/inventory/listings/v1/#{listingId}/pdfs")
+      
+      BOUNDARY = "---WebKitFormBoundary7MA4YWxkTrZu0gW"
 
-      url = "/fulfillment/pdf/v1/listing/#{opts[:listing]}?seat=#{opts[:seat]}&row=#{opts[:row]}"
-      url = URI.encode(url)
+      header = {"Content-Type": "multipart/form-data; boundary=#{BOUNDARY}"}
+      
+      seat_params = []
+      
+      post_body = []
+
+      post_body << "#{BOUNDARY}\r\n" 
+      post_body << "Content-Disposition: form-data; name=\"listing\"\r\n"
+      file_names = []
+      seats.map do |seat|
+         
+        seat_params.push({
+            row: seat[:row],
+            seat: seat[:seat],
+            name: File.basename(seat[:file]),
+            ticketType: "TICKET" # default is TICKET if it parking pass then PARKING_PASS
+          })
+      end
+
+      post_body << { "listing": {"tickets": seat_params}}.to_json
+       
+      seats.map do
+        post_body << "#{BOUNDARY}\r\n" 
+        post_body << "Content-Disposition: form-data; name=\"#{File.basename(seat[:file])}\"\r\n"
+        post_body << "Content-Type: #{MIME::Types.type_for(seat[:file])}\r\n\r\n"
+        post_body << File.read(seat[:file])
+      end
+      
+      post_body << "#{BOUNDARY}--"
+
       response = self.class.post(url, query: {
         ticket: File.new(opts[:ticket])
       }, headers: {
