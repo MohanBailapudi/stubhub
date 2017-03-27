@@ -228,7 +228,7 @@ module Stubhub
       listing = {products:[]}
       
       seats.map do |seat|
-        listing[:products].push({row:seat[:row],fulfillmentArtifact: seat[:barcode]
+        listing[:products].push({row:seat[:row],fulfillmentArtifact: seat[:barcode],
             productType:"TICKET",seat:seat[:seat],operation: "UPDATE",externalId: external_id})
       end
       response = put "/inventory/listings/v2/#{listing_id}", listing
@@ -265,15 +265,15 @@ module Stubhub
     def predeliver(listing_id, seats)
       uri = URI.parse("http://api.stubhub.com/inventory/listings/v1/#{listingId}/pdfs")
       
-      BOUNDARY = "---WebKitFormBoundary7MA4YWxkTrZu0gW"
+      boundary = "---WebKitFormBoundary7MA4YWxkTrZu0gW"
 
-      header = {"Content-Type": "multipart/form-data; boundary=#{BOUNDARY}"}
+      header = {"Content-Type": "multipart/form-data; boundary=#{boundary}"}
       
       seat_params = []
       
       post_body = []
 
-      post_body << "#{BOUNDARY}\r\n" 
+      post_body << "#{boundary}\r\n" 
       post_body << "Content-Disposition: form-data; name=\"listing\"\r\n"
       file_names = []
       seats.map do |seat|
@@ -289,13 +289,13 @@ module Stubhub
       post_body << { "listing": {"tickets": seat_params}}.to_json
        
       seats.map do
-        post_body << "#{BOUNDARY}\r\n" 
+        post_body << "#{boundary}\r\n" 
         post_body << "Content-Disposition: form-data; name=\"#{File.basename(seat[:file])}\"\r\n"
         post_body << "Content-Type: #{MIME::Types.type_for(seat[:file])}\r\n\r\n"
         post_body << File.read(seat[:file])
       end
       
-      post_body << "#{BOUNDARY}--"
+      post_body << "#{boundary}--"
 
       response = self.class.post(url, query: {
         ticket: File.new(opts[:ticket])
