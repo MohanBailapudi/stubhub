@@ -4,6 +4,7 @@ require 'uri'
 require 'net/https'
 require 'httmultiparty'
 require 'mime/types'
+require 'open-uri'
 
 module Stubhub
 
@@ -263,52 +264,94 @@ module Stubhub
     end
 
     def predeliver(listing_id, seats)
-      uri = URI.parse("http://api.stubhub.com/inventory/listings/v1/#{listingId}/pdfs")
-      
+      uri = URI.parse("https://api.stubhub.com/inventory/listings/v1/#{listing_id}/pdfs")
+      #proxy_uri = URI.parse("http://amzur:zkll4915g274-h0b9-ao94-b33cs7b67dfc@52.8.232.97:3128")
+
       boundary = "---WebKitFormBoundary7MA4YWxkTrZu0gW"
 
-      header = {"Content-Type": "multipart/form-data; boundary=#{boundary}"}
+      header = {"Content-Type" => "multipart/form-data;","boundary"=>"----WebKitFormBoundary7MA4YWxkTrZu0gW", 
+        "Authorization"=>"Bearer #{self.access_token}","Accept"=>"application/json"}
       
       seat_params = []
       
-      post_body = []
-
+      post_body = ""
+      post_body << "\r\n"
       post_body << "#{boundary}\r\n" 
+      
       post_body << "Content-Disposition: form-data; name=\"listing\"\r\n"
-      file_names = []
+
       seats.map do |seat|
-         
         seat_params.push({
             row: seat[:row],
             seat: seat[:seat],
-            name: File.basename(seat[:file]),
+            name: seat[:name],
             ticketType: "TICKET" # default is TICKET if it parking pass then PARKING_PASS
           })
       end
 
-      post_body << { "listing": {"tickets": seat_params}}.to_json
-       
-      seats.map do
+      post_body << {tickets: seat_params}.to_json
+      post_body << "\r\n"
+      #{File.basename(seat[:file])}
+      seats.each do |seat|
         post_body << "#{boundary}\r\n" 
-        post_body << "Content-Disposition: form-data; name=\"#{File.basename(seat[:file])}\"\r\n"
-        post_body << "Content-Type: #{MIME::Types.type_for(seat[:file])}\r\n\r\n"
-        post_body << File.read(seat[:file])
+        post_body << "Content-Disposition: form-data; name=\"#{seat[:name]}\"; filename=\"file1\"\r\n"
+        post_body << "Content-Type: application/pdf"
+        post_body << "\r\n"
+        post_body << open(seat[:file]).read
+        post_body << "\r\n"
       end
+       
+      http = Net::HTTP.new(uri.host, uri.port)#, proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.password)
+      request = Net::HTTP::Post.new(uri.request_uri, header)
+      http.use_ssl = uri.port == 443
+      request.body = post_body
+      # Send the request
+      response = http.start { |http| http.request(request) }
+      puts JSON.parse(response.body)
+      # data = {
+      #   listing: {tickets: []}
+      # }
+
+      # params = {}
+
+      # headers = {
+      #   'Authorization' => "Bearer #{self.access_token}",
+      #   parts: {
+      #     json: {
+      #       'Content-Type' => 'application/json',
+      #     }
+      #   }
+      # }
+
+      # seats.each_with_index do |seat, i|
+      #   file_name = File.basename(seat[:file])
+      #   data[:listing][:tickets].push({
+      #     row: seat[:row],
+      #     seat: seat[:seat],
+      #     name: seat[:name],
+      #     ticketType: "Ticket"
+      #   })
+
+      #   params[seat[:name]] = UploadIO.new(File.new(seat[:file]), 'application/pdf', file_name)
+      # end
+
+      # params[:json] = data.to_json
+
+      # url = URI.parse("https://api.stubhub.com/inventory/listings/v1/#{listing_id}/pdfs")
+      # #proxy_uri = URI.parse("http://amzur:zkll4915g274-h0b9-ao94-b33cs7b67dfc@52.8.232.97:3128")
       
-      post_body << "#{boundary}--"
+      # req = Net::HTTP::Post::Multipart.new url.path, params, headers
+      # http = Net::HTTP.new(url.host, url.port) #proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.password)
+      # http.use_ssl = url.port == 443
+      # puts http.inspect
+      # raise req.inspect
+      # response = http.start { |http| http.request(req) }
 
-      response = self.class.post(url, query: {
-        ticket: File.new(opts[:ticket])
-      }, headers: {
-        'Authorization' => "Bearer #{self.access_token}"
-      })
-
-
-      unless response.code == 200
-        raise Stubhub::ApiError.new(response.code, response.body)
-      end
-
-      response.parsed_response
+      # unless response.code == "200"
+      #   raise Stubhub::ApiError.new(response.code, response.body)
+      # end
+      # puts response
+      # JSON.parse(response.body)
 
     end
 
