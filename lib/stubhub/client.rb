@@ -112,7 +112,12 @@ module Stubhub
 
 
     def update_listing(stubhub_id, listing={})
-
+      puts listing.inspect
+      
+      if listing[:delete_seats].present?
+        puts "okay"
+      end
+      
       if listing.include? :traits
         listing[:ticketTraits] = []
 
@@ -156,10 +161,11 @@ module Stubhub
           #  delete_seat is array first element seat, second element is row
           listing[:products].push({row: delete_seat[1],seat: delete_seat[0],productType:"TICKET",externalId:delete_seat[2],operation: "DELETE"})
         end
-
+        puts "okay"
+        puts listing[:products].inspect
         listing.delete :delete_seats
       end
-
+      puts listing[:products].inspect
       response = put "/inventory/listings/v2/#{stubhub_id}", listing
 
       response.parsed_response["id"]
