@@ -262,12 +262,11 @@ module Stubhub
     end
 
     def predeliver(listing_id, seats)
+
       boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW'
-
       url = URI("https://api.stubhub.com/inventory/listings/v1/#{listing_id}/pdfs")
-
       proxy_uri = URI.parse(ENV["STUBHUB_PROXY"])
-      http = Net::HTTP.new(url.host, url.port,proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.password)
+      http = Net::HTTP.new(url.host, url.port, proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.password)
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE
       request = Net::HTTP::Post.new(url)
@@ -278,7 +277,6 @@ module Stubhub
       request["cache-control"] = 'no-cache'
       
       seat_params = []
-      file_params = []
       seats.map do |seat|
         seat_params.push({row: seat[:row],seat: seat[:seat],name: seat[:name]})
       end
@@ -303,11 +301,9 @@ module Stubhub
 
       request.body = body.join
       response = http.request(request)
-      
       unless response.code == "200"
         raise Stubhub::ApiError.new(response.code, response.body)
       end
-
       JSON.parse(response.body)
 
     end
