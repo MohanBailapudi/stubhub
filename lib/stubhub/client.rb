@@ -3,7 +3,11 @@ require 'json'
 require 'uri'
 require 'net/https'
 require 'httmultiparty'
-
+require 'mime/types'
+require 'open-uri'
+require 'multipart_body'
+#require 'net/http'
+require 'openssl'
 module Stubhub
 
   class Client
@@ -225,7 +229,7 @@ module Stubhub
       
       seats.map do |seat|
         listing[:products].push({row:seat[:row],fulfillmentArtifact: seat[:barcode],
-            productType:"TICKET",seat:seat[:seat],operation: "UPDATE",externalId: seat[:externalId]})
+          productType:"TICKET",seat:seat[:seat],operation: "UPDATE",externalId: seat[:externalId]})
       end
       response = put "/inventory/listings/v2/#{listing_id}", listing
       response
@@ -258,22 +262,53 @@ module Stubhub
       response.parsed_response
     end
 
-    def predeliver(opts = {})
+    def predeliver(listing_id, seats)
+      boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW'
 
-      url = "/fulfillment/pdf/v1/listing/#{opts[:listing]}?seat=#{opts[:seat]}&row=#{opts[:row]}"
-      url = URI.encode(url)
-      response = self.class.post(url, query: {
-        ticket: File.new(opts[:ticket])
-      }, headers: {
-        'Authorization' => "Bearer #{self.access_token}"
-      })
+      url = URI("https://api.stubhub.com/inventory/listings/v1/#{listing_id}/pdfs")
+
+      http = Net::HTTP.new(url.host, url.port)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      request = Net::HTTP::Post.new(url)
+
+      request["authorization"] = "Bearer #{self.access_token}"
+      request["accept"] = 'application/json'
+      request["content-type"] = "multipart/form-data; boundary=#{boundary}"
+      request["cache-control"] = 'no-cache'
+      
+      seat_params = []
+      file_params = []
+      seats.map do |seat|
+        seat_params.push({row: seat[:row],seat: seat[:seat],name: seat[:name]})
+      end
+      
+      body = []
+      # JSON data
+      body << "--#{boundary}\r\nContent-Disposition: form-data;"
+      body << "name=\"listing\"\r\n\r\n"
+      body << {listing: {tickets: seat_params}}.to_json
+      body <<  "\r\n"
+      body << "--#{boundary}\r\n"
+      
 
 
-      unless response.code == 200
+      #File data
+      seats.map do |seat|
+        body << "Content-Disposition: form-data;"
+        body << "name=\"#{seat[:name]}\"; filename=\"#{seat[:name]}.pdf\"\r\nContent-Type: application/pdf\r\n"
+        body << "#{File.read(seat[:file])}\r\n"
+        body << "\r\n\r\n\r\n--#{boundary}--"
+      end
+
+      request.body = body.join
+      response = http.request(request)
+      
+      unless response.code == "200"
         raise Stubhub::ApiError.new(response.code, response.body)
       end
 
-      response.parsed_response
+      JSON.parse(response.body)
 
     end
 
