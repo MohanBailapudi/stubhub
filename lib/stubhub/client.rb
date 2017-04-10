@@ -6,6 +6,8 @@ require 'httmultiparty'
 require 'mime/types'
 require 'open-uri'
 require 'multipart_body'
+#require 'net/http'
+require 'openssl'
 module Stubhub
 
   class Client
@@ -264,99 +266,52 @@ module Stubhub
     end
 
     def predeliver(listing_id, seats)
-      uri = URI.parse("https://api.stubhub.com/inventory/listings/v1/#{listing_id}/pdfs")
-      # uri = URI.parse("http://localhost:3000")
-      #proxy_uri = URI.parse("http://amzur:zkll4915g274-h0b9-ao94-b33cs7b67dfc@52.8.232.97:3128")
+      boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW'
 
-      boundary = "---WebKitFormBoundary7MA4YWxkTrZu0gW"
+      url = URI("https://api.stubhub.com/inventory/listings/v1/#{listing_id}/pdfs")
 
-      header = {"Content-Type" => "multipart/form-data; boundary=\"---WebKitFormBoundary7MA4YWxkTrZu0gW\"", 
-        "Authorization"=>"Bearer #{self.access_token}","Accept"=>"application/json"}
+      http = Net::HTTP.new(url.host, url.port)
+      http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      request = Net::HTTP::Post.new(url)
+
+      request["authorization"] = "Bearer #{self.access_token}"
+      request["accept"] = 'application/json'
+      request["content-type"] = "multipart/form-data; boundary=#{boundary}"
+      request["cache-control"] = 'no-cache'
       
       seat_params = []
-      
-      post_body = []
-      post_body << "\r\n"
-      post_body << "#{boundary}\r\n" 
-      
-      post_body << "Content-Disposition: form-data; name=\"listing\"\r\n"
-
+      file_params = []
       seats.map do |seat|
-        seat_params.push({
-            row: seat[:row],
-            seat: seat[:seat],
-            name: seat[:name]
-            # ticketType: "TICKET" # default is TICKET if it parking pass then PARKING_PASS
-          })
+        seat_params.push({row: seat[:row],seat: seat[:seat],name: seat[:name]})
       end
-
-      post_body << {listing: {tickets: seat_params}}.to_json
-      post_body << "\r\n"
-
-      #{File.basename(seat[:file])}
-      seats.each do |seat|
-        post_body << "#{boundary}\r\n" 
-        post_body << "Content-Disposition: form-data; name=\"#{seat[:name]}\"; filename=\"file1.pdf\"\r\n"
-        post_body << "Content-Type: application/pdf"
-        post_body << "\r\n"
-        post_body << File.new("/home/trainingdev/Downloads/file1.pdf","rb")
-        post_body << "\r\n"
-      end
-       post_body << "\r\n"
-       post_body << "#{boundary}"
-      http = Net::HTTP.new(uri.host, uri.port)#, proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.password)
-      request = Net::HTTP::Post.new(uri.request_uri, header)
-      http.use_ssl = uri.port == 443
-      request.body = post_body.join
-      # Send the request
-      puts request.inspect
-      response = http.start { |http| http.request(request) }
-      puts response
-      puts JSON.parse(response.body)
-      # data = {
-      #   listing: {tickets: []}
-      # }
-
-      # params = {}
-
-      # headers = {
-      #   'Authorization' => "Bearer #{self.access_token}",
-      #   parts: {
-      #     json: {
-      #       'Content-Type' => 'application/json',
-      #     }
-      #   }
-      # }
-
-      # seats.each_with_index do |seat, i|
-      #   file_name = File.basename(seat[:file])
-      #   data[:listing][:tickets].push({
-      #     row: seat[:row],
-      #     seat: seat[:seat],
-      #     name: seat[:name],
-      #     ticketType: "Ticket"
-      #   })
-
-      #   params[seat[:name]] = UploadIO.new(File.new(seat[:file]), 'application/pdf', file_name)
-      # end
-
-      # params[:json] = data.to_json
-
-      # url = URI.parse("https://api.stubhub.com/inventory/listings/v1/#{listing_id}/pdfs")
-      # #proxy_uri = URI.parse("http://amzur:zkll4915g274-h0b9-ao94-b33cs7b67dfc@52.8.232.97:3128")
       
-      # req = Net::HTTP::Post::Multipart.new url.path, params, headers
-      # http = Net::HTTP.new(url.host, url.port) #proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.password)
-      # http.use_ssl = url.port == 443
-      # puts http.inspect
-      # raise req.inspect
-      # response = http.start { |http| http.request(req) }
+      body = []
+      # JSON data
+      body << "--#{boundary}\r\nContent-Disposition: form-data;"
+      body << "name=\"listing\"\r\n\r\n"
+      body << {listing: {tickets: seat_params}}.to_json
+      body <<  "\r\n"
+      body << "--#{boundary}\r\n"
+      
 
-      # unless response.code == "200"
-      #   raise Stubhub::ApiError.new(response.code, response.body)
-      # end
-      # puts response
-      # JSON.parse(response.body)
+
+      #File data
+      seats.map do |seat|
+        body << "Content-Disposition: form-data;"
+        body << "name=\"#{seat[:name]}\"; filename=\"#{seat[:name]}.pdf\"\r\nContent-Type: application/pdf\r\n"
+        body << "#{File.read(seat[:file])}\r\n"
+        body << "\r\n\r\n\r\n--#{boundary}--"
+      end
+
+      request.body = body.join
+      response = http.request(request)
+      
+      unless response.code == "200"
+        raise Stubhub::ApiError.new(response.code, response.body)
+      end
+
+      JSON.parse(response.body)
 
     end
 
