@@ -266,7 +266,8 @@ module Stubhub
 
       url = URI("https://api.stubhub.com/inventory/listings/v1/#{listing_id}/pdfs")
 
-      http = Net::HTTP.new(url.host, url.port)
+      proxy_uri = URI.parse(ENV["STUBHUB_PROXY"])
+      http = Net::HTTP.new(url.host, url.port,proxy_uri.host, proxy_uri.port, proxy_uri.user, proxy_uri.password)
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE
       request = Net::HTTP::Post.new(url)
