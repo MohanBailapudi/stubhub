@@ -5,7 +5,6 @@ require 'net/https'
 require 'httmultiparty'
 require 'mime/types'
 require 'open-uri'
-require 'multipart_body'
 #require 'net/http'
 require 'openssl'
 module Stubhub
