@@ -296,8 +296,9 @@ module Stubhub
         body << "Content-Disposition: form-data;"
         body << "name=\"#{seat[:name]}\"; filename=\"#{seat[:name]}.pdf\"\r\nContent-Type: application/pdf\r\n"
         body << "#{File.read(seat[:file])}\r\n"
-        body << "\r\n\r\n\r\n--#{boundary}--"
       end
+      
+      body << "\r\n\r\n\r\n--#{boundary}--"
 
       request.body = body.join
       response = http.request(request)
