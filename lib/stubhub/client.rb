@@ -287,18 +287,14 @@ module Stubhub
       body << "name=\"listing\"\r\n\r\n"
       body << {listing: {tickets: seat_params}}.to_json
       body <<  "\r\n"
-      body << "--#{boundary}\r\n"
-      
-
-
+    
       #File data
       seats.map do |seat|
+        body << "--#{boundary}\r\n"
         body << "Content-Disposition: form-data;"
         body << "name=\"#{seat[:name]}\"; filename=\"#{seat[:name]}.pdf\"\r\nContent-Type: application/pdf\r\n"
         body << "#{File.read(seat[:file])}\r\n"
       end
-      
-      body << "\r\n\r\n\r\n--#{boundary}--"
 
       request.body = body.join
       response = http.request(request)
